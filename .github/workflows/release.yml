@@ -19,18 +19,7 @@ jobs:
 
   linux:
     needs: setup
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [ ubuntu-22.04, ubuntu-22.04-arm ]
-        include:
-          - runner: ubuntu-22.04
-            arch: x86_64
-          - runner: ubuntu-22.04-arm
-            arch: arm64
-    runs-on: ${{ matrix.runner }}
-    env:
-      LDAI_NO_APPSTREAM: 1
+    runs-on: ubuntu-22.04
     outputs:
       version: ${{ steps.build.outputs.version }}
     steps:
@@ -38,24 +27,21 @@ jobs:
         with:
           fetch-depth: 0
       - run: ./.github/scripts/install_deps.sh
-      - run: sudo apt-get install -y libfuse2
       - run: echo "CMAKE_BUILD_TYPE=Release" >> $GITHUB_ENV
-      - name: appimage
-        run:  ./scripts/genappimage.sh latest
-      - name: tar.gz
+      - name: Build deps
+        run: |
+          cmake -S cmake.deps -B .deps -G Ninja -D CMAKE_BUILD_TYPE=Release
+          cmake --build .deps
+      - name: Build neovim
+        run: |
+          cmake -B build -G Ninja -D CMAKE_BUILD_TYPE=Release
+          cmake --build build
+      - name: Package
         run: cpack --config build/CPackConfig.cmake -G TGZ
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: nvim-appimage-${{ matrix.arch }}
-          path: |
-            build/bin/nvim-linux-${{ matrix.arch }}.appimage
-            build/bin/nvim-linux-${{ matrix.arch }}.appimage.zsync
-          retention-days: 1
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: nvim-linux-${{ matrix.arch }}
-          path: |
-            build/nvim-linux-${{ matrix.arch }}.tar.gz
+          name: nvim-linux-x86_64
+          path: build/nvim-linux-x86_64.tar.gz
           retention-days: 1
       - name: Export version
         id: build
@@ -66,16 +52,7 @@ jobs:
 
   macos:
     needs: setup
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [ macos-15-intel, macos-14 ]
-        include:
-          - runner: macos-15-intel
-            arch: x86_64
-          - runner: macos-14
-            arch: arm64
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-14
     env:
       MACOSX_DEPLOYMENT_TARGET: 11.0
     steps:
@@ -101,53 +78,12 @@ jobs:
         run: cpack --config build/CPackConfig.cmake
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: nvim-macos-${{ matrix.arch }}
-          path: build/nvim-macos-${{ matrix.arch }}.tar.gz
-          retention-days: 1
-
-  windows:
-    needs: setup
-    strategy:
-      matrix:
-        include:
-          - runner: windows-2022
-            arch: x86_64
-            archive_name: nvim-win64
-          - runner: windows-11-arm
-            arch: arm64
-            archive_name: nvim-win-arm64
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
-        with:
-          fetch-depth: 0
-      - run: .github/scripts/env.ps1
-        env:
-          BUILD_ARCH: ${{ matrix.arch }}
-      - name: Install Wix
-        run: |
-          Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip" -OutFile "wix314-binaries.zip"
-          Expand-Archive -Path "wix314-binaries.zip" -DestinationPath "C:/wix"
-          echo "C:\wix" >> $env:GITHUB_PATH
-      - name: Build deps
-        run: |
-          cmake -S cmake.deps -B .deps -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build .deps
-      - name: Build package
-        run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --target package
-      - name: Upload artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: nvim-win-${{ matrix.arch }}
-          path: |
-            build/${{ matrix.archive_name }}.zip
-            build/${{ matrix.archive_name }}.msi
+          name: nvim-macos-arm64
+          path: build/nvim-macos-arm64.tar.gz
           retention-days: 1
 
   publish:
-    needs: [setup, linux, macos, windows]
+    needs: [setup, linux, macos]
     runs-on: ubuntu-latest
     env:
       GH_REPO: ${{ github.repository }}
@@ -167,4 +103,4 @@ jobs:
           NVIM_COMMIT: ${{ github.sha }}
         run: |
           envsubst < "$GITHUB_WORKSPACE/.github/workflows/notes.md" > "$RUNNER_TEMP/notes.md"
-          gh release create $TAG_NAME --notes-file "$RUNNER_TEMP/notes.md" --title "Snapshot $TAG_NAME" --target $GITHUB_SHA nvim-macos-x86_64/* nvim-macos-arm64/* nvim-linux-x86_64/* nvim-linux-arm64/* nvim-appimage-x86_64/* nvim-appimage-arm64/* nvim-win-x86_64/* nvim-win-arm64/*
+          gh release create $TAG_NAME --notes-file "$RUNNER_TEMP/notes.md" --title "Snapshot $TAG_NAME" --target $GITHUB_SHA nvim-linux-x86_64/* nvim-macos-arm64/*
