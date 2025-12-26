@@ -19,7 +19,16 @@ jobs:
 
   linux:
     needs: setup
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ ubuntu-22.04, ubuntu-22.04-arm ]
+        include:
+          - runner: ubuntu-22.04
+            arch: x86_64
+          - runner: ubuntu-22.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
     outputs:
       version: ${{ steps.build.outputs.version }}
     steps:
@@ -40,8 +49,8 @@ jobs:
         run: cpack --config build/CPackConfig.cmake -G TGZ
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: nvim-linux-x86_64
-          path: build/nvim-linux-x86_64.tar.gz
+          name: nvim-linux-${{ matrix.arch }}
+          path: build/nvim-linux-${{ matrix.arch }}.tar.gz
           retention-days: 1
       - name: Export version
         id: build
@@ -103,4 +112,4 @@ jobs:
           NVIM_COMMIT: ${{ github.sha }}
         run: |
           envsubst < "$GITHUB_WORKSPACE/.github/workflows/notes.md" > "$RUNNER_TEMP/notes.md"
-          gh release create $TAG_NAME --notes-file "$RUNNER_TEMP/notes.md" --title "Snapshot $TAG_NAME" --target $GITHUB_SHA nvim-linux-x86_64/* nvim-macos-arm64/*
+          gh release create $TAG_NAME --notes-file "$RUNNER_TEMP/notes.md" --title "Snapshot $TAG_NAME" --target $GITHUB_SHA nvim-linux-x86_64/* nvim-linux-arm64/* nvim-macos-arm64/*
