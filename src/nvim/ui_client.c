@@ -389,6 +389,15 @@ void ui_client_event_error_exit(Array args)
   ui_client_error_exit = (int)args.items[0].data.integer;
 }
 
+void ui_client_event_ui_send(Array args)
+{
+  if (args.size < 1 || args.items[0].type != kObjectTypeString) {
+    ELOG("Error handling ui event 'ui_send'");
+    return;
+  }
+  tui_ui_send(tui, args.items[0].data.string);
+}
+
 #ifdef EXITFREE
 void ui_client_free_all_mem(void)
 {

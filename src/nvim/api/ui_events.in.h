@@ -47,7 +47,7 @@ void chdir(String path)
 void stop(void)
   FUNC_API_NOEXPORT;
 void ui_send(String content)
-  FUNC_API_SINCE(14) FUNC_API_REMOTE_IMPL;
+  FUNC_API_SINCE(14) FUNC_API_REMOTE_IMPL FUNC_API_CLIENT_IMPL;
 
 // First revision of the grid protocol, used by default
 void update_fg(Integer fg)
