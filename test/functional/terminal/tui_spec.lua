@@ -4152,6 +4152,32 @@ describe('TUI client', function()
     end)
   end)
 
+  -- Test that OSC 777 notifications can be sent from headless server to TUI client.
+  -- This is enabled by ui_client_event_ui_send() calling tui_ui_send().
+  it('nvim_ui_send forwards OSC 777 notifications from remote server', function()
+    local server, _, screen_client = start_headless_server_and_client()
+    -- OSC 777 is the desktop notification escape sequence (used by terminals like Ghostty)
+    -- Format: ESC ] 777 ; notify ; title ; body BEL
+    server:request('nvim_ui_send', '\027]777;notify;Test Title;Test Body\007')
+    -- The escape sequence should be forwarded to the terminal.
+    -- We can't easily verify the notification was displayed, but we can verify
+    -- nvim_ui_send doesn't error and the client remains functional.
+    screen_client:expect([[
+      Halloj^!                                           |
+      {100:~                                                 }|*4
+                                                        |
+      {5:-- TERMINAL --}                                    |
+    ]])
+    -- Verify the server is still responsive after sending the notification
+    server:request('nvim_input', 'A world')
+    screen_client:expect([[
+      Halloj! world^                                     |
+      {100:~                                                 }|*4
+                                                        |
+      {5:-- TERMINAL --}                                    |
+    ]])
+  end)
+
   it('throws error when no server exists', function()
     clear()
     local screen = tt.setup_child_nvim({
