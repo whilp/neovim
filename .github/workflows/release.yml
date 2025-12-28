@@ -17,8 +17,24 @@ jobs:
           TAG_NAME=$(date -u +%Y.%m.%d)-${GITHUB_SHA:0:7}
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - run: ./.github/scripts/install_deps.sh --test
+      - name: Build deps
+        run: |
+          cmake -S cmake.deps -B .deps -G Ninja -D CMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake --build .deps
+      - name: Build neovim
+        run: |
+          cmake -B build -G Ninja -D CMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake --build build
+      - name: Run functional tests
+        run: cmake --build build --target functionaltest
+
   linux:
-    needs: setup
+    needs: [setup, test]
     strategy:
       fail-fast: false
       matrix:
@@ -60,7 +76,7 @@ jobs:
           printf 'END\n' >> $GITHUB_OUTPUT
 
   macos:
-    needs: setup
+    needs: [setup, test]
     runs-on: macos-14
     env:
       MACOSX_DEPLOYMENT_TARGET: 11.0
