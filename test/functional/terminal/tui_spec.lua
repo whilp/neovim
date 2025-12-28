@@ -4169,9 +4169,9 @@ describe('TUI client', function()
       {5:-- TERMINAL --}                                    |
     ]])
     -- Verify the server is still responsive after sending the notification
-    server:request('nvim_input', 'A world')
+    server:request('nvim_input', 'A world<Esc>')
     screen_client:expect([[
-      Halloj! world^                                     |
+      Halloj! worl^d                                     |
       {100:~                                                 }|*4
                                                         |
       {5:-- TERMINAL --}                                    |
