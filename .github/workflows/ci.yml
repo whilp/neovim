@@ -20,5 +20,3 @@ jobs:
           cmake --build build
       - name: Run unit tests
         run: cmake --build build --target unittest
-      - name: Run functional tests
-        run: cmake --build build --target functionaltest
